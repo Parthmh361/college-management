@@ -6,10 +6,12 @@ import { requireRole } from '@/lib/middleware';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    
+    const { id } = await params;
     
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) {
@@ -28,13 +30,13 @@ export async function GET(
     }
 
     const isAdmin = requestingUser.role === 'Admin';
-    const isOwnData = decoded.userId === params.id;
+    const isOwnData = decoded.userId === id;
 
     if (!isAdmin && !isOwnData) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    const user = await User.findById(params.id).select('-password -refreshToken');
+    const user = await User.findById(id).select('-password -refreshToken');
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -52,10 +54,12 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    
+    const { id } = await params;
     
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) {
@@ -74,7 +78,7 @@ export async function PATCH(
     }
 
     const isAdmin = requestingUser.role === 'Admin';
-    const isOwnData = decoded.userId === params.id;
+    const isOwnData = decoded.userId === id;
 
     if (!isAdmin && !isOwnData) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
@@ -89,7 +93,7 @@ export async function PATCH(
     }
 
     const user = await User.findByIdAndUpdate(
-      params.id,
+      id,
       updateData,
       { new: true, runValidators: true }
     ).select('-password -refreshToken');
@@ -114,10 +118,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    
+    const { id } = await params;
     
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) {
@@ -141,14 +147,14 @@ export async function DELETE(
     }
 
     // Prevent admin from deleting themselves
-    if (decoded.userId === params.id) {
+    if (decoded.userId === id) {
       return NextResponse.json(
         { error: 'Cannot delete your own account' },
         { status: 400 }
       );
     }
 
-    const user = await User.findByIdAndDelete(params.id);
+    const user = await User.findByIdAndDelete(id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

@@ -4,11 +4,13 @@ import { Subject } from '@/models/Subject';
 import { User } from '@/models/User';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
 
-async function getSubjectHandler(req: AuthenticatedRequest, { params }: { params: { id: string } }) {
+async function getSubjectHandler(req: AuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     
-    const subject = await Subject.findById(params.id)
+    const { id } = await params;
+    
+    const subject = await Subject.findById(id)
       .populate('teacher', 'firstName lastName email')
       .populate('enrolledStudents', 'firstName lastName studentId');
 
@@ -33,15 +35,17 @@ async function getSubjectHandler(req: AuthenticatedRequest, { params }: { params
   }
 }
 
-async function updateSubjectHandler(req: AuthenticatedRequest, { params }: { params: { id: string } }) {
+async function updateSubjectHandler(req: AuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
+    
+    const { id } = await params;
     
     const body = await req.json();
     const { name, code, description, credits, semester, department, teacherId } = body;
 
     // Find subject
-    const subject = await Subject.findById(params.id);
+    const subject = await Subject.findById(id);
     if (!subject) {
       return NextResponse.json(
         { success: false, message: 'Subject not found' },
@@ -62,7 +66,7 @@ async function updateSubjectHandler(req: AuthenticatedRequest, { params }: { par
       const existingSubject = await Subject.findOne({ 
         code: code.toUpperCase(), 
         isActive: true,
-        _id: { $ne: params.id }
+        _id: { $ne: id }
       });
       if (existingSubject) {
         return NextResponse.json(
@@ -114,12 +118,14 @@ async function updateSubjectHandler(req: AuthenticatedRequest, { params }: { par
   }
 }
 
-async function deleteSubjectHandler(req: AuthenticatedRequest, { params }: { params: { id: string } }) {
+async function deleteSubjectHandler(req: AuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     
+    const { id } = await params;
+    
     // Find subject
-    const subject = await Subject.findById(params.id);
+    const subject = await Subject.findById(id);
     if (!subject) {
       return NextResponse.json(
         { success: false, message: 'Subject not found' },
@@ -155,10 +161,10 @@ async function deleteSubjectHandler(req: AuthenticatedRequest, { params }: { par
 }
 
 // Export route handlers
-function withParams(handler: (req: AuthenticatedRequest, { params }: { params: { id: string } }) => Promise<NextResponse>) {
+function withParams(handler: (req: AuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) => Promise<NextResponse>) {
   return async function(req: AuthenticatedRequest) {
     const id = req.nextUrl?.pathname.split('/').pop() || '';
-    return handler(req, { params: { id } });
+    return handler(req, { params: Promise.resolve({ id }) });
   };
 }
 

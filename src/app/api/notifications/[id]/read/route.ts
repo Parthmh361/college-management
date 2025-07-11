@@ -5,10 +5,12 @@ import { verifyToken } from '@/lib/auth';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
+    
+    const { id } = await params;
     
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) {
@@ -21,7 +23,7 @@ export async function PATCH(
     }
 
     const notification = await Notification.findOneAndUpdate(
-      { _id: params.id, recipient: decoded.userId },
+      { _id: id, recipient: decoded.userId },
       { isRead: true },
       { new: true }
     );
