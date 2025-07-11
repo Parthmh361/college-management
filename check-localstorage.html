@@ -1,0 +1,26 @@
+// Script to check localStorage content
+console.log('Checking localStorage content...');
+
+const token = localStorage.getItem('token');
+const user = localStorage.getItem('user');
+
+console.log('Token exists:', !!token);
+console.log('User data:', user);
+
+if (user) {
+  try {
+    const parsedUser = JSON.parse(user);
+    console.log('Parsed user:', parsedUser);
+    console.log('firstName:', parsedUser.firstName);
+    console.log('lastName:', parsedUser.lastName);
+    console.log('fullName:', `${parsedUser.firstName} ${parsedUser.lastName}`);
+  } catch (e) {
+    console.error('Error parsing user data:', e);
+  }
+}
+
+// Clear localStorage to test fresh login
+console.log('Clearing localStorage...');
+localStorage.removeItem('token');
+localStorage.removeItem('user');
+console.log('localStorage cleared. Please try logging in again.');

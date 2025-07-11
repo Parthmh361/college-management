@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear and Test localStorage</title>
+</head>
+<body>
+    <h1>Clear and Test localStorage</h1>
+    
+    <div>
+        <h2>Current localStorage:</h2>
+        <pre id="current-storage"></pre>
+    </div>
+    
+    <button onclick="clearStorage()">Clear localStorage</button>
+    <button onclick="showStorage()">Show Current Storage</button>
+    
+    <div style="margin-top: 20px;">
+        <h2>Test User Data:</h2>
+        <button onclick="testUserData()">Set Test User Data</button>
+        <div id="test-result"></div>
+    </div>
+
+    <script>
+        function showStorage() {
+            const storage = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                storage[key] = localStorage.getItem(key);
+            }
+            document.getElementById('current-storage').textContent = JSON.stringify(storage, null, 2);
+        }
+        
+        function clearStorage() {
+            localStorage.clear();
+            console.log('localStorage cleared');
+            showStorage();
+            alert('localStorage cleared!');
+        }
+        
+        function testUserData() {
+            // Set the correct user data structure that should be stored
+            const testUser = {
+                id: "686fca8253081d16f4a28985",
+                firstName: "System",
+                lastName: "Administrator", 
+                email: "admin@college.edu",
+                role: "Admin",
+                profilePicture: null,
+                isVerified: false
+            };
+            
+            localStorage.setItem('user', JSON.stringify(testUser));
+            localStorage.setItem('token', 'test-token');
+            
+            // Test how the user would be displayed
+            const storedUser = JSON.parse(localStorage.getItem('user'));
+            const displayName = `${storedUser.firstName} ${storedUser.lastName}`;
+            
+            document.getElementById('test-result').innerHTML = `
+                <p><strong>Stored User:</strong> ${JSON.stringify(storedUser, null, 2)}</p>
+                <p><strong>Display Name:</strong> ${displayName}</p>
+            `;
+            
+            console.log('Test user data set:', storedUser);
+            console.log('Display name:', displayName);
+            
+            alert('Test user data set! Display name: ' + displayName);
+        }
+        
+        // Show current storage on load
+        showStorage();
+    </script>
+</body>
+</html>
