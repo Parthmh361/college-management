@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
+import StudentAssignmentDialog from '@/components/StudentAssignmentDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +88,10 @@ export default function AdminSubjectsPage() {
   const [formData, setFormData] = useState<SubjectFormData>(initialFormData);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Student assignment dialog state
+  const [isStudentDialogOpen, setIsStudentDialogOpen] = useState(false);
+  const [selectedSubjectForStudents, setSelectedSubjectForStudents] = useState<Subject | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -264,6 +269,16 @@ export default function AdminSubjectsPage() {
     setEditingSubject(null);
     setFormData(initialFormData);
     setIsDialogOpen(true);
+  };
+
+  const handleManageStudents = (subject: Subject) => {
+    setSelectedSubjectForStudents(subject);
+    setIsStudentDialogOpen(true);
+  };
+
+  const handleStudentAssignmentsUpdated = () => {
+    // Refresh subjects to update enrolled student counts
+    fetchSubjects();
   };
 
   if (!mounted) {
@@ -614,7 +629,16 @@ export default function AdminSubjectsPage() {
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleManageStudents(subject)}
+                              title="Manage Students"
+                            >
+                              <Users className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleEdit(subject)}
+                              title="Edit Subject"
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -623,6 +647,7 @@ export default function AdminSubjectsPage() {
                               size="sm"
                               onClick={() => handleDelete(subject._id)}
                               className="text-red-600 hover:text-red-700"
+                              title="Delete Subject"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -636,6 +661,14 @@ export default function AdminSubjectsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Student Assignment Dialog */}
+        <StudentAssignmentDialog
+          isOpen={isStudentDialogOpen}
+          onClose={() => setIsStudentDialogOpen(false)}
+          subject={selectedSubjectForStudents}
+          onAssignmentsUpdated={handleStudentAssignmentsUpdated}
+        />
       </div>
     </DashboardLayout>
   );
