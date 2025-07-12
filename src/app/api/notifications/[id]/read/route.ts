@@ -3,10 +3,12 @@ import connectToDatabase from '@/lib/mongodb';
 import { Notification } from '@/models/Notification';
 import { verifyToken } from '@/lib/auth';
 
-export async function PATCH(
+export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     await connectToDatabase();
     

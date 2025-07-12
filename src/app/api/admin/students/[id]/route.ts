@@ -7,8 +7,10 @@ import bcryptjs from 'bcryptjs';
 // PUT - Update student
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   try {
     await connectDB();
 
@@ -34,7 +36,7 @@ export async function PUT(
     // Check if another student with same email or studentId exists (excluding current one)
     const existingStudent = await User.findOne({
       role: 'Student',
-      _id: { $ne: params.id },
+      _id: { $ne: id },
       $or: [
         { email: { $regex: new RegExp(`^${email}$`, 'i') } },
         { studentId }
@@ -73,7 +75,7 @@ export async function PUT(
 
     // Update student
     const updatedStudent = await User.findByIdAndUpdate(
-      params.id,
+      id,
       updateData,
       { new: true }
     ).select('-password');
@@ -92,8 +94,9 @@ export async function PUT(
 // DELETE - Delete student
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     await connectDB();
 
@@ -111,7 +114,7 @@ export async function DELETE(
     }
 
     // Delete the student
-    const deletedStudent = await User.findByIdAndDelete(params.id);
+    const deletedStudent = await User.findByIdAndDelete(id);
 
     if (!deletedStudent) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
