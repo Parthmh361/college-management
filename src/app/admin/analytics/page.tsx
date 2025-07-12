@@ -29,16 +29,13 @@ import {
 import { 
   TrendingUp, 
   TrendingDown, 
-  Users, 
   Calendar, 
   BookOpen,
   Activity,
-  Clock,
   Target,
   Award,
   AlertTriangle,
   Download,
-  Filter,
   BarChart3,
   PieChart as PieChartIcon
 } from 'lucide-react';
