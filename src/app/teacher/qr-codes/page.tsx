@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   QrCode, 
   Download, 
@@ -18,7 +19,9 @@ import {
   Calendar,
   Users,
   RefreshCw,
-  CheckCircle
+  CheckCircle,
+  BookOpen,
+  Zap
 } from 'lucide-react';
 
 interface Subject {
@@ -26,6 +29,21 @@ interface Subject {
   name: string;
   code: string;
   enrolledStudents: string[];
+}
+
+interface CurrentClass {
+  subject: {
+    _id: string;
+    name: string;
+    code: string;
+  };
+  startTime: string;
+  endTime: string;
+  room: string;
+  type: string;
+  isOngoing: boolean;
+  isUpcoming: boolean;
+  timeRemaining?: string;
 }
 
 interface QRCodeData {
@@ -50,12 +68,15 @@ interface QRCodeData {
 
 export default function QRCodeGeneration() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [activeQRCodes, setActiveQRCodes] = useState<QRCodeData[]>([]);
+  const [currentClass, setCurrentClass] = useState<CurrentClass | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [quickGenDialog, setQuickGenDialog] = useState(false);
 
   const [formData, setFormData] = useState({
     subjectId: '',
@@ -86,8 +107,40 @@ export default function QRCodeGeneration() {
     setUser(parsedUser);
     fetchSubjects();
     fetchActiveQRCodes();
+    fetchCurrentClass();
     getCurrentLocation();
-  }, [router]);
+    
+    // Check if redirected from timetable with qrId
+    const qrId = searchParams.get('qrId');
+    if (qrId) {
+      // Scroll to that QR code or highlight it
+      setTimeout(() => {
+        const element = document.getElementById(`qr-${qrId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+          element.classList.add('ring-2', 'ring-blue-500');
+        }
+      }, 500);
+    }
+  }, [router, searchParams]);
+
+  const fetchCurrentClass = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/timetable/current', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentClass(data.currentClass || null);
+      }
+    } catch (error) {
+      console.error('Error fetching current class:', error);
+    }
+  };
 
   const fetchSubjects = async () => {
     try {
@@ -221,6 +274,52 @@ export default function QRCodeGeneration() {
     document.body.removeChild(link);
   };
 
+  const quickGenerateFromTimetable = async () => {
+    if (!currentClass) return;
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/qr/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          subjectId: currentClass.subject._id,
+          classStartTime: currentClass.startTime,
+          classEndTime: currentClass.endTime,
+          location: {
+            address: currentClass.room,
+            latitude: parseFloat(formData.latitude) || 0,
+            longitude: parseFloat(formData.longitude) || 0,
+            radius: 100
+          },
+          expiryMinutes: 30,
+          attendanceType: 'class'
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(`QR Code generated for ${currentClass.subject.name}!`);
+        fetchActiveQRCodes();
+        setQuickGenDialog(false);
+      } else {
+        setError(data.message || 'Failed to generate QR code');
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deactivateQRCode = async (qrCodeId: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -267,6 +366,61 @@ export default function QRCodeGeneration() {
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>{success}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Quick Generate from Current Class */}
+        {currentClass && (
+          <Card className="border-l-4 border-l-blue-500 bg-blue-50">
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="flex items-center text-blue-700">
+                    <Zap className="mr-2 h-5 w-5" />
+                    {currentClass.isOngoing ? 'Current Class' : 'Upcoming Class'}
+                  </CardTitle>
+                  <CardDescription className="text-blue-600">
+                    {currentClass.subject.name} ({currentClass.subject.code}) in {currentClass.room}
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => setQuickGenDialog(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Quick Generate
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-4 text-sm text-blue-700">
+                <div className="flex items-center">
+                  <Clock className="mr-1 h-4 w-4" />
+                  {new Date(`1970-01-01T${currentClass.startTime}:00`).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })} - {new Date(`1970-01-01T${currentClass.endTime}:00`).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </div>
+                <div className="flex items-center">
+                  <MapPin className="mr-1 h-4 w-4" />
+                  {currentClass.room}
+                </div>
+                <div className="flex items-center">
+                  <BookOpen className="mr-1 h-4 w-4" />
+                  {currentClass.type}
+                </div>
+              </div>
+              {currentClass.timeRemaining && (
+                <div className="mt-2 text-sm font-medium text-blue-800">
+                  {currentClass.isOngoing ? 'Time remaining: ' : 'Starts in: '}{currentClass.timeRemaining}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -463,6 +617,55 @@ export default function QRCodeGeneration() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Quick Generate Dialog */}
+        <Dialog open={quickGenDialog} onOpenChange={setQuickGenDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Quick Generate QR Code</DialogTitle>
+              <DialogDescription>
+                Generate QR code for your current class using timetable data
+              </DialogDescription>
+            </DialogHeader>
+            {currentClass && (
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-semibold text-lg">{currentClass.subject.name}</h3>
+                  <p className="text-sm text-gray-600">Code: {currentClass.subject.code}</p>
+                  <div className="flex items-center space-x-4 mt-2 text-sm">
+                    <div className="flex items-center">
+                      <Clock className="mr-1 h-4 w-4" />
+                      {new Date(`1970-01-01T${currentClass.startTime}:00`).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })} - {new Date(`1970-01-01T${currentClass.endTime}:00`).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="mr-1 h-4 w-4" />
+                      {currentClass.room}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600">
+                  This will generate a QR code valid for 30 minutes using your current location and class timing from the timetable.
+                </p>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setQuickGenDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={quickGenerateFromTimetable} disabled={loading}>
+                    {loading ? 'Generating...' : 'Generate QR Code'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

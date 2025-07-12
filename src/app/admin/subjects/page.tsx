@@ -54,6 +54,12 @@ interface Teacher {
   department: string;
 }
 
+interface Department {
+  _id: string;
+  name: string;
+  code: string;
+}
+
 interface SubjectFormData {
   name: string;
   code: string;
@@ -81,6 +87,7 @@ export default function AdminSubjectsPage() {
   const [user, setUser] = useState<any>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -88,7 +95,7 @@ export default function AdminSubjectsPage() {
   const [formData, setFormData] = useState<SubjectFormData>(initialFormData);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Student assignment dialog state
   const [isStudentDialogOpen, setIsStudentDialogOpen] = useState(false);
   const [selectedSubjectForStudents, setSelectedSubjectForStudents] = useState<Subject | null>(null);
@@ -99,18 +106,18 @@ export default function AdminSubjectsPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    
+
     // Check authentication and role
     const userData = localStorage.getItem('user');
     const token = localStorage.getItem('token');
-    
+
     if (!userData || !token) {
       router.push('/login');
       return;
     }
 
     const parsedUser = JSON.parse(userData);
-    
+
     if (parsedUser.role !== 'Admin') {
       router.push('/dashboard');
       return;
@@ -119,31 +126,26 @@ export default function AdminSubjectsPage() {
     setUser(parsedUser);
     fetchSubjects();
     fetchTeachers();
+    fetchDepartments();
   }, [router, mounted]);
 
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Fetching subjects with token:', token ? 'Token exists' : 'No token');
-      
       const response = await fetch('/api/subjects', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      console.log('Subjects response status:', response.status);
-      
       if (response.ok) {
         const data = await response.json();
         setSubjects(data.data?.subjects || []);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to fetch subjects:', response.status, errorData);
         setError('Failed to fetch subjects');
       }
     } catch (error) {
-      console.error('Error fetching subjects:', error);
       setError('Failed to fetch subjects');
     } finally {
       setLoading(false);
@@ -153,27 +155,36 @@ export default function AdminSubjectsPage() {
   const fetchTeachers = async () => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Fetching teachers with token:', token ? 'Token exists' : 'No token');
-      
       const response = await fetch('/api/users?role=Teacher', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      console.log('Teachers response status:', response.status);
-
       if (response.ok) {
         const data = await response.json();
         setTeachers(data.data?.users || []);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to fetch teachers:', response.status, errorData);
-        // Don't set error state here as it's not critical for the page to work
       }
     } catch (error) {
-      console.error('Error fetching teachers:', error);
       // Teachers list is optional, don't break the page
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/departments', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDepartments(data.departments || []);
+      }
+    } catch (error) {
+      // Departments list is optional, don't break the page
     }
   };
 
@@ -218,7 +229,6 @@ export default function AdminSubjectsPage() {
         setError(data.error || 'Failed to save subject');
       }
     } catch (error) {
-      console.error('Error saving subject:', error);
       setError('Failed to save subject');
     }
   };
@@ -260,7 +270,6 @@ export default function AdminSubjectsPage() {
         setError(data.error || 'Failed to delete subject');
       }
     } catch (error) {
-      console.error('Error deleting subject:', error);
       setError('Failed to delete subject');
     }
   };
@@ -415,14 +424,15 @@ export default function AdminSubjectsPage() {
                         <SelectValue placeholder="Select Department" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Computer Science">Computer Science</SelectItem>
-                        <SelectItem value="Mathematics">Mathematics</SelectItem>
-                        <SelectItem value="Physics">Physics</SelectItem>
-                        <SelectItem value="Chemistry">Chemistry</SelectItem>
-                        <SelectItem value="Biology">Biology</SelectItem>
-                        <SelectItem value="English">English</SelectItem>
-                        <SelectItem value="History">History</SelectItem>
-                        <SelectItem value="Economics">Economics</SelectItem>
+                        {departments.length === 0 ? (
+                          <SelectItem value="" disabled>No departments found</SelectItem>
+                        ) : (
+                          departments.map(dept => (
+                            <SelectItem key={dept._id || dept.code} value={dept.code}>
+                              {dept.name} ({dept.code})
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -561,103 +571,114 @@ export default function AdminSubjectsPage() {
           </CardHeader>
           <CardContent>
             <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Credits</TableHead>
-                    <TableHead>Semester</TableHead>
-                    <TableHead>Academic Year</TableHead>
-                    <TableHead>Assigned Teacher</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subjects.length === 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                    <p className="mt-2">Loading subjects...</p>
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="text-red-500">{error}</div>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
-                        No subjects found. Create your first subject!
-                      </TableCell>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Credits</TableHead>
+                      <TableHead>Semester</TableHead>
+                      <TableHead>Academic Year</TableHead>
+                      <TableHead>Assigned Teacher</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ) : (
-                    subjects.map((subject) => (
-                      <TableRow key={subject._id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{subject.name}</div>
-                            {subject.description && (
-                              <div className="text-sm text-muted-foreground">
-                                {subject.description.length > 50 
-                                  ? `${subject.description.substring(0, 50)}...`
-                                  : subject.description
-                                }
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{subject.code}</Badge>
-                        </TableCell>
-                        <TableCell>{subject.department}</TableCell>
-                        <TableCell>{subject.credits}</TableCell>
-                        <TableCell>Sem {subject.semester}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{subject.academicYear}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {subject.teacher ? (
-                            <div>
-                              <div className="font-medium">{subject.teacher.firstName} {subject.teacher.lastName}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {subject.teacher.email}
-                              </div>
-                            </div>
-                          ) : (
-                            <Badge variant="secondary">Not Assigned</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={subject.isActive ? "default" : "secondary"}>
-                            {subject.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleManageStudents(subject)}
-                              title="Manage Students"
-                            >
-                              <Users className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(subject)}
-                              title="Edit Subject"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(subject._id)}
-                              className="text-red-600 hover:text-red-700"
-                              title="Delete Subject"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-8">
+                          No subjects found. Create your first subject!
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      subjects.map((subject) => (
+                        <TableRow key={subject._id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{subject.name}</div>
+                              {subject.description && (
+                                <div className="text-sm text-muted-foreground">
+                                  {subject.description.length > 50 
+                                    ? `${subject.description.substring(0, 50)}...`
+                                    : subject.description
+                                  }
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{subject.code}</Badge>
+                          </TableCell>
+                          <TableCell>{subject.department}</TableCell>
+                          <TableCell>{subject.credits}</TableCell>
+                          <TableCell>Sem {subject.semester}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{subject.academicYear}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {subject.teacher ? (
+                              <div>
+                                <div className="font-medium">{subject.teacher.firstName} {subject.teacher.lastName}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {subject.teacher.email}
+                                </div>
+                              </div>
+                            ) : (
+                              <Badge variant="secondary">Not Assigned</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={subject.isActive ? "default" : "secondary"}>
+                              {subject.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleManageStudents(subject)}
+                                title="Manage Students"
+                              >
+                                <Users className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(subject)}
+                                title="Edit Subject"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDelete(subject._id)}
+                                className="text-red-600 hover:text-red-700"
+                                title="Delete Subject"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           </CardContent>
         </Card>

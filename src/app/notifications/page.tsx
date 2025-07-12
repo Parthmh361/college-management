@@ -23,14 +23,17 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
+type AllowedRole = "Admin" | "Teacher" | "Student" | "Parent" | "Alumni";
+
 interface User {
   id: string;
   _id: string;
   firstName: string;
   lastName: string;
   email: string;
-  role: string;
+  role: AllowedRole;
   avatar?: string;
+  isActive: boolean;
 }
 
 interface Notification {
@@ -62,9 +65,10 @@ export default function NotificationsPage() {
       router.push('/login');
       return;
     }
-
     const parsedUser = JSON.parse(userData);
-    setUser(parsedUser);
+    // Ensure isActive is present (fallback to true if missing)
+    setUser({ ...parsedUser, isActive: parsedUser.isActive ?? true });
+    fetchNotifications();
     fetchNotifications();
   }, [router]);
 
@@ -181,8 +185,16 @@ export default function NotificationsPage() {
     );
   }
 
+  // Ensure user.role is one of the allowed values
+  const allowedRoles: AllowedRole[] = ["Admin", "Teacher", "Student", "Parent", "Alumni"];
+  const safeUser: User | null = user && allowedRoles.includes(user.role as AllowedRole)
+    ? { ...user, role: user.role as AllowedRole }
+    : user
+      ? { ...user, role: "Student" as AllowedRole }
+      : user;
+
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout user={safeUser}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">

@@ -29,6 +29,7 @@ interface User {
   lastName: string;
   email: string;
   role: string;
+  isActive: boolean;
   avatar?: string;
 }
 
@@ -75,9 +76,13 @@ export default function ChatPage() {
       router.push('/login');
       return;
     }
-
     const parsedUser = JSON.parse(userData);
-    setUser(parsedUser);
+    // Ensure isActive is present (fallback to true if missing)
+    // Ensure role is one of the allowed values
+    const allowedRoles = ["Admin", "Teacher", "Student", "Parent", "Alumni"] as const;
+    const safeRole = allowedRoles.includes(parsedUser.role) ? parsedUser.role : "Student";
+    setUser({ ...parsedUser, isActive: parsedUser.isActive ?? true, role: safeRole });
+    fetchContacts();
     fetchContacts();
   }, [router]);
 
@@ -191,7 +196,16 @@ export default function ChatPage() {
   }
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout
+      user={
+        user
+          ? {
+              ...user,
+              role: user.role as "Admin" | "Teacher" | "Student" | "Parent" | "Alumni"
+            }
+          : undefined
+      }
+    >
       <div className="h-[calc(100vh-120px)] flex">
         {/* Contacts Sidebar */}
         <div className="w-1/3 border-r bg-white">

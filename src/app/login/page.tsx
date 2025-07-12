@@ -8,9 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setUser, setToken } = useAuthStore();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -36,37 +38,24 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Store token and user data (API returns nested under data)
+        // Save to zustand and localStorage
+        setToken(data.data.token);
+        setUser(data.data.user);
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
-        
+
         // Redirect based on role
-        const redirectPath = getRoleBasedRedirect(data.data.user.role);
-        router.push(redirectPath);
+        if (data.data.user.role === 'Admin') router.replace('/admin/dashboard');
+        else if (data.data.user.role === 'Teacher') router.replace('/teacher/dashboard');
+        else if (data.data.user.role === 'Student') router.replace('/student/dashboard');
+        else router.replace('/dashboard');
       } else {
         setError(data.error || data.message || 'Login failed');
       }
-    } catch (error) {
+    } catch {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getRoleBasedRedirect = (role: string): string => {
-    switch (role) {
-      case 'Admin':
-        return '/admin/dashboard';
-      case 'Teacher':
-        return '/teacher/dashboard';
-      case 'Student':
-        return '/student/dashboard';
-      case 'Parent':
-        return '/parent/dashboard';
-      case 'Alumni':
-        return '/alumni/dashboard';
-      default:
-        return '/dashboard';
     }
   };
 
