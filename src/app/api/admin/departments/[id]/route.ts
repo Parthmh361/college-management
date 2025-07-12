@@ -5,14 +5,16 @@ import jwt from 'jsonwebtoken';
 
 // PUT - Update department
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: { id: string } }
 ) {
+  const { id } = context.params;
+
   try {
     await connectDB();
 
     // Check authentication
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
+    const token = req.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) {
       return NextResponse.json({ error: 'Authorization required' }, { status: 401 });
     }
@@ -24,7 +26,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    const { name, code } = await request.json();
+    const { name, code } = await req.json();
 
     if (!name || !code) {
       return NextResponse.json({ error: 'Name and code are required' }, { status: 400 });
@@ -33,7 +35,7 @@ export async function PUT(
     // Check if another department with same name or code exists (excluding current one)
     const existingDept = await User.findOne({
       role: 'Department',
-      _id: { $ne: params.id },
+      _id: { $ne: id },
       $or: [
         { 'department.name': { $regex: new RegExp(`^${name}$`, 'i') } },
         { 'department.code': { $regex: new RegExp(`^${code}$`, 'i') } }
@@ -46,7 +48,7 @@ export async function PUT(
 
     // Update department
     const updatedDept = await User.findByIdAndUpdate(
-      params.id,
+      id,
       {
         'department.name': name,
         'department.code': code
