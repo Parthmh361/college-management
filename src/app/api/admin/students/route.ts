@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const semester = searchParams.get('semester');
     const section = searchParams.get('section');
 
-    let query: any = { role: 'Student' };
+    const query: any = { role: 'Student' };
     
     if (department) query.department = department;
     if (semester) query.semester = parseInt(semester);

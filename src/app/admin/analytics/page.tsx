@@ -37,7 +37,6 @@ import {
   AlertTriangle,
   Download,
   BarChart3,
-  PieChart as PieChartIcon
 } from 'lucide-react';
 
 interface AnalyticsData {

@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
       .populate('schedule.timeSlots.subject', 'name code')
       .populate('schedule.timeSlots.teacher', 'firstName lastName email');
 
-    let currentClasses = [];
-    let upcomingClasses = [];
+    const currentClasses = [];
+    const upcomingClasses = [];
 
     for (const timetable of timetables) {
     interface TimeSlot {

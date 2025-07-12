@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const department = searchParams.get('department');
     const academicYear = searchParams.get('academicYear') || '2024-25';
 
-    let query: any = { academicYear, isActive: true };
+    const query: any = { academicYear, isActive: true };
 
     // If user is not admin, filter by their department/semester
     if (user.role !== 'Admin') {
